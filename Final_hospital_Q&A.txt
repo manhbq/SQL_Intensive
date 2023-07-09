@@ -1,0 +1,141 @@
+
+1. Get Customer who have card in the system and show their card ? 
+select cu.id as customer_id, cu.name, c.card_number
+from card c 
+	LEFT JOIN customer cu on c.customer_id = cu.id
+order by customer_id;
+ 
+2. GET all customer who live in Ho Chi Minh City ?
+select * from customer
+where address like '%HCM%';
+
+3. how many percentage of ACTIVE/INACTIVE account ?
+select 'ACTIVE' as `status`, count(*)*100/(select count(*) 
+					from account) as percentage
+from account 
+where status = 'ACTIVE'
+UNION 
+
+select 'INACTIVE' as `status`, count(*)*100/(select count(*) 
+					from account) as percentage
+from account 
+where status = 'INACTIVE';
+
+4. Show all Doctor with their skill/departments ?
+select d.id, d.name, dep.name
+from doctor d 
+     join doctor_in_department dip on d.id = dip.doctor_id
+     join department dep on dep.id = dip.department_id
+order by d.id;
+
+5. order doctor has most skills/departments to less ?
+select d.id, d.name, count(*) as total_skills
+from doctor d 
+     left join doctor_in_department dip on d.id = dip.doctor_id
+group by d.id
+order by total_skills desc;
+
+6. which departments does not have doctor? 
+select dep.id, dep.name, count(IF(doctor_id is null, null, 1)) as total_doc
+from department dep
+	left join doctor_in_department dip on dep.id = dip.department_id
+group by dep.id
+having total_doc = 0;
+
+7. which departments has most doctor ? how many ? which has the least ? how many ? 
+select dep.id, dep.name, count(IF(doctor_id is null, null, 1)) as total_doc
+from department dep
+	left join doctor_in_department dip on dep.id = dip.department_id
+group by dep.id 
+having  total_doc = (select max(total_doc) 
+from (select dep.id, dep.name, count(IF(doctor_id is null, null, 1)) as total_doc
+from department dep
+	left join doctor_in_department dip on dep.id = dip.department_id
+group by dep.id) as tmp_count)
+
+UNION 
+
+select dep.id, dep.name, count(IF(doctor_id is null, null, 1)) as total_doc
+from department dep
+	left join doctor_in_department dip on dep.id = dip.department_id
+group by dep.id 
+having  total_doc = (select min(total_doc) 
+from (select dep.id, dep.name, count(IF(doctor_id is null, null, 1)) as total_doc
+from department dep
+	left join doctor_in_department dip on dep.id = dip.department_id
+group by dep.id) as tmp_count);
+
+8. get total income each year ?
+select YEAR(date_time), sum(price) 
+from booking
+where status = 'PAID'
+group by YEAR(date_time);
+
+9. which department has the biggest average income for every appointment all the time ? 
+select department_id, avg(price) as average_price
+from booking
+group by department_id
+having average_price = (select max(average_price)
+						from (select department_id, avg(price) as average_price
+								from booking
+								group by department_id) as temp_table);
+
+10. show the total sell in the last 12 months?
+select sum(price)
+from booking 
+where status = 'PAID'  AND TIMESTAMPDIFF(MONTH, date_time, now()) > 0 AND TIMESTAMPDIFF(MONTH, date_time, now()) <12;
+
+11. in the last 5 months, which payment method has the most payment times. and how many percentage ? 
+select method, count(*) as total_time, count(*)*100/(select count(*) 
+								from booking b 
+								join payment p on b.id = p.booking_id
+								where status = 'PAID' AND TIMESTAMPDIFF(MONTH, date_time, now()) > 0 AND TIMESTAMPDIFF(MONTH, date_time, now()) <5) as percentage 
+from booking b
+	join payment p on b.id = p.booking_id
+where status = 'PAID'  AND TIMESTAMPDIFF(MONTH, date_time, now()) > 0 AND TIMESTAMPDIFF(MONTH, date_time, now()) <5
+group by method
+having total_time =  (select max(total_time) from (select method, count(*) as total_time
+											from booking b
+											join payment p on b.id = p.booking_id
+											where status = 'PAID'   AND TIMESTAMPDIFF(MONTH, date_time, now()) > 0 AND TIMESTAMPDIFF(MONTH, date_time, now()) <5
+											group by method) as temp_table);
+12. Show the total appointment that each doctor take part in ?
+select d.id, d.name, count(*) as total_appointment
+from appointment a
+	join doctor d ON d.id = a.doctor_id
+where status = 'DONE'
+group by d.id ;
+
+13. Show all information of an appointment of a customer (customer ID = 1) ?
+select * 
+from appointment
+where customer_id = 1; 
+
+14. Which card never pay ?
+select c.id, c.card_number, count(IF(p.id is null, null, 1)) as payment_time
+from card c
+	left join payment p on c.id = p.card_id
+group by c.id
+having payment_time = 0;
+
+15. Show money paid of each cards ?
+select c.card_number, sum(price) as total_payment
+from payment p 
+	join card c on p.card_id = c.id
+	join booking b on b.id = p.booking_id
+group by c.id;
+
+16. Which doctor cannot use their skill ? 
+select d.id, d.name, count(IF(a.id is null, null, 1)) as total_finished_appointment
+from doctor d 
+	left join booking b on d.id = b.doctor_id
+	left join appointment a ON b.id = a.booking_id and a.status = 'DONE'
+group by d.id
+having total_finished_appointment = 0;
+
+
+
+
+
+
+
